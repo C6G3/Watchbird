@@ -1,0 +1,14 @@
+# ML service + training pipeline (no Streamlit needed)
+fastapi
+uvicorn[standard]
+python-dotenv
+supabase
+pandas
+numpy
+scikit-learn
+joblib
+geopy
+matplotlib
+seaborn
+folium
+paho-mqtt

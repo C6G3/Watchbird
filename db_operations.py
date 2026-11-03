@@ -1,9 +1,6 @@
 from supabase import create_client
-import streamlit as st
 import pandas as pd
-    
-SUPABASE_URL = st.secrets["SUPABASE_URL"]  
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]  
+from supabase_config import SUPABASE_URL, SUPABASE_KEY
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 device_table = []
@@ -97,8 +94,9 @@ def get_no_of_rows(devices:list):
 def write_to_data_table(payload: dict):
     supabase.table("Data").upsert(payload).execute()
     
-def save_outlier_result(outlier_result: dict):
-    supabase.table("Data").upsert(outlier_result, on_conflict="Id").execute()
+def save_outlier_result(outlier_result: list):
+    # Bulk UPDATE via RPC: a partial upsert would fail the NOT NULL columns.
+    return supabase.rpc("apply_anomaly_labels", {"labels": outlier_result}).execute().data
 
 def save_device_if_model(if_model: dict):
     supabase.table("Devices").upsert(if_model, on_conflict="Device_name").execute()

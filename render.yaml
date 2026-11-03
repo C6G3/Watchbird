@@ -1,0 +1,68 @@
+# Render blueprint: Dashboard -> New -> Blueprint -> pick this repo.
+#
+# Two free web services. Free instances sleep after ~15 min without traffic;
+# the next visitor gets Render's "waking up" page for 30-60 s. While the ML
+# service sleeps, the MQTT bridge inside it sleeps too, so tracker fixes sent
+# in that window are dropped. Fine for a demo; use a paid instance (or keep it
+# awake) for real telemetry.
+#
+# Values marked `sync: false` are asked for when the blueprint is created.
+
+services:
+  - type: web
+    name: watchbird-ml
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r ml/requirements.txt
+    startCommand: uvicorn ml.service:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ML_SERVICE_SECRET
+        generateValue: true
+      # Host the MQTT -> Supabase bridge here instead of a paid background worker.
+      - key: RUN_BRIDGE
+        value: "1"
+      # Score new fixes every 10 minutes while the service is awake.
+      - key: MONITOR_INTERVAL_MIN
+        value: "10"
+
+  - type: web
+    name: watchbird-web
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: HF_TOKEN
+        sync: false
+      - key: HF_VISION_MODEL
+        value: Qwen/Qwen2.5-VL-7B-Instruct
+      - key: HF_PLANT_CLASSIFIER
+        value: linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification
+      # Public URL of watchbird-ml, e.g. https://watchbird-ml.onrender.com
+      # (free services can't receive private-network traffic).
+      - key: ML_SERVICE_URL
+        sync: false
+      - key: ML_SERVICE_SECRET
+        fromService:
+          type: web
+          name: watchbird-ml
+          envVarKey: ML_SERVICE_SECRET
