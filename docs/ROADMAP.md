@@ -27,6 +27,11 @@ Owner "user" means it needs the human (accounts, keys, dashboards).
        Then in Supabase → Authentication: set Site URL and redirect URLs to the
        Render domain (and `http://localhost:3000/**`), or confirmation and reset
        links point at the wrong host; set the minimum password length to 8.
+       Set up custom SMTP (Authentication → Emails → SMTP, e.g. Resend or Brevo
+       free tier): Supabase's built-in sender allows only a couple of emails an
+       hour and only to the project team's own addresses, so real farmers can't
+       sign up or reset passwords without it. For local testing only, turning off
+       "Confirm email" (Providers → Email) skips the email entirely.
 5. [ ] **User**: retrain in Admin → Models (select devices, keep "assign" on)
        so every device gets a v2 `.joblib` model. Then, **asking the user first**,
        run the first scoring pass. It overwrites the old Streamlit app's

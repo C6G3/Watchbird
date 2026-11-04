@@ -7,6 +7,21 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 export type AuthState = { error?: string; message?: string };
 
+// Supabase error codes -> plain language. Anything unknown falls back to Supabase's own text.
+const FRIENDLY: Record<string, string> = {
+  invalid_credentials: "That email and password don't match.",
+  email_not_confirmed: "Confirm your email first: open the link we sent you, then sign in.",
+  over_email_send_rate_limit:
+    "We've sent too many emails in the last hour. Try again later, or ask your admin to set up the email service.",
+  email_address_not_authorized:
+    "This address can't receive email from Watchbird yet. Ask your admin to set up the email service.",
+  over_request_rate_limit: "Too many attempts. Wait a minute and try again.",
+  user_already_exists: "There's already an account with that email. Sign in instead.",
+  email_exists: "There's already an account with that email. Sign in instead.",
+  weak_password: "That password is too easy to guess. Try a longer one.",
+};
+const friendly = (error: { code?: string; message: string }) => FRIENDLY[error.code ?? ""] ?? error.message;
+
 export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
   const email = String(form.get("email") ?? "").trim();
   const password = String(form.get("password") ?? "");
@@ -14,7 +29,7 @@ export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
 
   const supabase = await createSupabaseServer();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: error.message === "Invalid login credentials" ? "That email and password don't match." : error.message };
+  if (error) return { error: friendly(error) };
   redirect("/dashboard");
 }
 
@@ -33,7 +48,7 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
     password,
     options: { data: { full_name: name }, emailRedirectTo: `${origin}/auth/callback` },
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendly(error) };
   if (data.session) redirect("/dashboard");
   return { message: `Check ${email} for a confirmation link. Your admin will then add you to your farm.` };
 }
@@ -47,7 +62,8 @@ export async function requestReset(_: AuthState, form: FormData): Promise<AuthSt
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/account?reset=1")}`,
   });
-  if (error?.status === 429) return { error: "Too many requests. Wait a minute and try again." };
+  // Only limits are reported; other errors would reveal whether the account exists.
+  if (error?.status === 429) return { error: friendly(error) };
   // Same answer whether or not the account exists, so the form can't be used to find accounts.
   return { message: `If ${email} has an account, a reset link is on its way. Open it in this browser.` };
 }

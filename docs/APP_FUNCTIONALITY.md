@@ -28,6 +28,8 @@ grant on `full_name` only, so they can't promote themselves).
   forms enforce 8+ characters server-side (also set this minimum in Supabase →
   Authentication → Providers → Email, or the raw API allows 6).
 - Every password field is `components/PasswordInput.tsx` (eye button to show/hide).
+- Supabase errors are shown through the `FRIENDLY` code → message map in
+  `app/login/actions.ts`; add new codes there rather than showing raw text.
 - Forgot password: `/login?mode=forgot` → `requestReset` →
   `resetPasswordForEmail` (same reply whether or not the account exists) →
   email link → `/auth/callback?next=/account?reset=1` → the user is signed in and
