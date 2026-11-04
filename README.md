@@ -108,6 +108,15 @@ too, so tracker fixes sent in that window are dropped: fine for a demo, not
 for production. Trained models live in the private `models` storage bucket, so
 restarts don't lose them (`python -m ml.sync_models` uploads local ones).
 
+## Phone as a tracker (demos)
+
+No ESP32 to hand? Register a device in **Admin → Devices** (e.g. `wb_phone`,
+attached to "Phone"), then open **Admin → Phone tracker** on a phone, pick
+it and press **Start**. The page reads the phone's GPS and posts a fix every
+5–30 s through `/api/track`, which stores it like `bridge.py` does. It
+needs HTTPS (so use the deployed site) and the screen kept on; fixes are queued
+while offline.
+
 ## Roles
 
 - **Farmer**: sees only the farms an admin has linked them to. Read-only,

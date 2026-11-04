@@ -37,6 +37,7 @@ Storage bucket `scans` → Hugging Face (`web/src/lib/insights.ts`) → `public.
 | `web/src/app/(app)/admin/*` | Admin only (`admin/layout.tsx` calls `requireAdmin`). `actions.ts` holds every admin mutation. |
 | `web/src/app/login`, `auth/*` | Email/password auth, signup, email callback, sign-out, demo entry. |
 | `web/src/app/api/scans/route.ts` | Upload → storage → HF models → save insight. |
+| `web/src/app/api/track/route.ts` | Phone-tracker fixes → `"Data"` (admin only, service-role insert). |
 | `web/src/proxy.ts` | Next 16 "proxy" (was middleware): refreshes Supabase cookie, bounces signed-out users. |
 | `web/src/lib/data.ts` | **All reads.** Supabase queries with a demo-data fallback. Add new queries here. |
 | `web/src/lib/session.ts` | `getViewer` / `requireViewer` / `requireAdmin`. |

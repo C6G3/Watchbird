@@ -1313,6 +1313,57 @@ input[type="checkbox"] {
   }
 }
 
+/* ---------- Phone tracker ---------- */
+
+.tracker {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .tracker {
+    grid-template-columns: 1fr;
+  }
+}
+.tracker__fix {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+}
+.tracker__coord {
+  font-size: clamp(1.3rem, 4.4vw, 2rem);
+  line-height: 1.2;
+}
+.tracker__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  width: 100%;
+}
+.tracker__meta dd {
+  font-size: 18px;
+  margin-top: 2px;
+}
+.live-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.live-dot--on {
+  background: var(--leaf);
+  animation: live-pulse 1.8s ease-out infinite;
+}
+@keyframes live-pulse {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--leaf) 55%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

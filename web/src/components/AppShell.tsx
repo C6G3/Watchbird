@@ -33,6 +33,7 @@ export default function AppShell({
     { href: "/admin/farms", label: "Farms", idx: "A2" },
     { href: "/admin/users", label: "People", idx: "A3" },
     { href: "/admin/models", label: "Models", idx: "A4" },
+    { href: "/admin/track", label: "Phone tracker", idx: "A5" },
   ];
 
   const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);

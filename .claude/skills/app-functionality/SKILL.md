@@ -11,7 +11,7 @@ description: What the Watchbird app does for each role and how each feature work
 | --- | --- | --- |
 | Sees | Only farms they're a member of, and those farms' devices + telemetry | Everything |
 | Can change | Their own name; their own photo scans | Devices, farms, memberships, roles, models, jobs |
-| Nav | Overview, Photo scans | + Devices, Farms, People, Models |
+| Nav | Overview, Photo scans | + Devices, Farms, People, Models, Phone tracker |
 
 Enforced twice: pages call `requireViewer()` / `requireAdmin()`
 (`web/src/lib/session.ts`), and Postgres RLS (`supabase/migrations/*`) via
@@ -84,6 +84,17 @@ Insights are guidance, not diagnosis — keep the disclaimer in `InsightView`.
 
 All mutations live in `app/(app)/admin/actions.ts`, return `{ok}|{error}`,
 and render through `components/ActionForm.tsx`.
+
+## Phone tracker (`/admin/track`)
+
+Admin-only demo stand-in for an ESP32. `components/PhoneTracker.tsx` uses
+`navigator.geolocation.watchPosition` (high accuracy) and queues one fix per
+interval (5/15/30 s), then POSTs batches to `/api/track`. The route checks the
+viewer is admin and the device exists (RLS), then inserts into `"Data"` with
+the service role, same columns as `bridge.py`. Fixes queue in memory while
+offline (cap 500) and flush on reconnect. A Screen Wake Lock keeps the phone
+awake (re-acquired on `visibilitychange`). Needs a secure context (HTTPS).
+Demo mode accepts fixes without saving.
 
 ## ML jobs (`ml/service.py`)
 
