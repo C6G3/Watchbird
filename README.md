@@ -1,7 +1,7 @@
 # Watchbird
 
 Field telemetry for farms. ESP32 GPS trackers report every 15 seconds, and an
-Isolation Forest flags movement that doesn't look normal: an animal leaving
+unsupervised model flags movement that doesn't look normal: an animal leaving
 its range, a bird circling where it never goes, a tractor moving at 3 a.m.
 Farmers see their farm on a map in plain language and can photograph a crop
 or animal for a diagnosis. Admins manage devices, farms, people and models.
@@ -137,16 +137,24 @@ Both rules are enforced in Postgres (RLS), not just in the UI.
 
 ## Anomaly model
 
-Isolation Forest over 35 engineered features: speed, acceleration and
-vertical speed, rolling mean/std over 3/5/9 fixes, hover and burst flags,
-z-scores, log transforms and time of day. Single-fix outliers are discarded,
-so only clustered anomalies (≥ 2 fixes within 15 minutes) count as events.
-See `train.py`.
+Local Outlier Factor (compares each fix with its 50 most similar past fixes)
+over 15 movement features, most of them relative to the animal's own routine:
+speed vs its usual speed, distance to anywhere it went in the past week, and
+movement vs what's usual at this hour. Single-fix outliers are discarded, so
+only clustered anomalies (≥ 2 fixes within 15 minutes) count as events.
+Code in `ml/`; `python -m ml.benchmark` re-runs the model comparison and writes
+`docs/ML_BENCHMARK.md`. The old `train.py` model is kept only to score devices
+that haven't been retrained.
 
-## For Claude Code
+## Working on this repo (people and AI agents)
 
-Two project skills describe the repo: `.claude/skills/codebase-map` (where
-things live) and `.claude/skills/app-functionality` (what each feature does
-and its permission rules).
+Start with [`AGENTS.md`](AGENTS.md): the rules, the pre-commit checks and
+recipes for common changes. Then:
+
+- [`docs/ROADMAP.md`](docs/ROADMAP.md): status, next tasks, decision log
+- [`docs/CODEBASE_MAP.md`](docs/CODEBASE_MAP.md): where everything lives
+- [`docs/APP_FUNCTIONALITY.md`](docs/APP_FUNCTIONALITY.md): how each feature works
+
+Schema changes are tested with `npm --prefix supabase/tests install && npm --prefix supabase/tests test`.
 
 MIT licensed. Made by [Psynolyn](https://github.com/Psynolyn).
