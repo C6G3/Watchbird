@@ -68,7 +68,7 @@ export default async function DevicePage({ params }: { params: Promise<{ id: str
         <div className="stat">
           <span className="label">Model</span>
           <span className="stat__value" style={{ fontSize: "1.9rem" }}>{track.model ?? "None"}</span>
-          <span className="stat__foot">{track.model ? "Isolation Forest" : "Not scored yet"}</span>
+          <span className="stat__foot">{track.model ? "Learned from past movement" : "Not scored yet"}</span>
         </div>
       </section>
 

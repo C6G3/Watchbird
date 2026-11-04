@@ -30,7 +30,7 @@ export default async function ModelsAdmin() {
       <header className="page-head">
         <div className="page-head__title">
           <span className="eyebrow">
-            <b>A4</b> Manage <span>Isolation Forest · one model per herd or species</span>
+            <b>A4</b> Manage <span>Learns each herd's normal movement · one model per herd or species</span>
           </span>
           <h1 className="display">Models</h1>
         </div>
@@ -67,6 +67,9 @@ export default async function ModelsAdmin() {
               <div className="checks">
                 <label>
                   <input type="checkbox" name="assign" defaultChecked /> Assign to these devices when done
+                </label>
+                <label>
+                  <input type="checkbox" name="per_device" /> A separate model for each device
                 </label>
               </div>
             </ActionForm>

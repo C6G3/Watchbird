@@ -160,7 +160,12 @@ export async function trainModel(_: ActionResult, f: FormData): Promise<ActionRe
   const deviceIds = f.getAll("device_id").map(Number).filter(Number.isInteger);
   if (!/^[a-z0-9_-]{2,40}$/i.test(name)) return { error: "Model name: 2–40 letters, digits, - or _." };
   if (!deviceIds.length) return { error: "Pick at least one device to learn from." };
-  return queueJob("train", { model_name: name, device_ids: deviceIds, assign: f.get("assign") === "on" });
+  return queueJob("train", {
+    model_name: name,
+    device_ids: deviceIds,
+    assign: f.get("assign") === "on",
+    per_device: f.get("per_device") === "on",
+  });
 }
 
 export async function runDetection(_: ActionResult, f: FormData): Promise<ActionResult> {
