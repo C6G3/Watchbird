@@ -24,6 +24,9 @@ Owner "user" means it needs the human (accounts, keys, dashboards).
 2. [ ] **User**: add farms (Admin → Farms) and assign the 4 devices (Admin → Devices).
 3. [ ] **User**: put `HF_TOKEN` in `web/.env.local`; test one photo scan.
 4. [ ] **User**: push `web-rebuild`, deploy with the Render blueprint (README → Deploy).
+       Then in Supabase → Authentication: set Site URL and redirect URLs to the
+       Render domain (and `http://localhost:3000/**`), or confirmation and reset
+       links point at the wrong host; set the minimum password length to 8.
 5. [ ] **User**: retrain in Admin → Models (select devices, keep "assign" on)
        so every device gets a v2 `.joblib` model. Then, **asking the user first**,
        run the first scoring pass. It overwrites the old Streamlit app's

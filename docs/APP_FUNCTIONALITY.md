@@ -23,6 +23,22 @@ grant on `full_name` only, so they can't promote themselves).
 - Email + password via Supabase Auth (`app/login/actions.ts`). Sign-up stores
   `full_name` in user metadata; the `on_auth_user_created` trigger creates the
   `profiles` row as `farmer`. Confirmation links land on `/auth/callback`.
+- Passwords never touch our tables: Supabase Auth hashes them (bcrypt) and the
+  session lives in httpOnly cookies. Sign-up asks for the password twice; both
+  forms enforce 8+ characters server-side (also set this minimum in Supabase →
+  Authentication → Providers → Email, or the raw API allows 6).
+- Every password field is `components/PasswordInput.tsx` (eye button to show/hide).
+- Forgot password: `/login?mode=forgot` → `requestReset` →
+  `resetPasswordForEmail` (same reply whether or not the account exists) →
+  email link → `/auth/callback?next=/account?reset=1` → the user is signed in and
+  sets a new password on `/account`. The link only works in the browser that
+  asked for it (PKCE). `next` must be a same-site path.
+- `/account` (any signed-in user, `app/(app)/account`): change password
+  (`updateUser`, then signs out the user's other sessions) and shows name, email,
+  role. Reached from the person icon next to sign-out.
+- Forms keep what the user typed when the server returns an error (they submit
+  through `keepValuesOnSubmit` in `components/ActionForm.tsx` instead of
+  `<form action>`, which React 19 always clears); `ActionForm` clears only on success.
 - New farmers see an empty-state dashboard until an admin links them to a farm
   (Admin → People).
 - First admin: `update public.profiles set role = 'admin' where email = '…';`

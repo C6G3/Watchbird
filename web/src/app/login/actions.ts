@@ -24,6 +24,7 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
   const password = String(form.get("password") ?? "");
   if (!name || !email) return { error: "Enter your name and email." };
   if (password.length < 8) return { error: "Use at least 8 characters for the password." };
+  if (password !== String(form.get("confirm") ?? "")) return { error: "The two passwords don't match." };
 
   const origin = (await headers()).get("origin") ?? "";
   const supabase = await createSupabaseServer();
@@ -35,6 +36,20 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
   if (error) return { error: error.message };
   if (data.session) redirect("/dashboard");
   return { message: `Check ${email} for a confirmation link. Your admin will then add you to your farm.` };
+}
+
+export async function requestReset(_: AuthState, form: FormData): Promise<AuthState> {
+  const email = String(form.get("email") ?? "").trim();
+  if (!email) return { error: "Enter the email you signed up with." };
+
+  const origin = (await headers()).get("origin") ?? "";
+  const supabase = await createSupabaseServer();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/account?reset=1")}`,
+  });
+  if (error?.status === 429) return { error: "Too many requests. Wait a minute and try again." };
+  // Same answer whether or not the account exists, so the form can't be used to find accounts.
+  return { message: `If ${email} has an account, a reset link is on its way. Open it in this browser.` };
 }
 
 export async function enterDemo(role: "admin" | "farmer") {

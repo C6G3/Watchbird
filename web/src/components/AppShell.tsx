@@ -88,6 +88,12 @@ export default function AppShell({
               <strong>{viewer.name}</strong>
               <span className="label">{viewer.role === "admin" ? "Admin" : "Farmer"}</span>
             </div>
+            <Link href="/account" className="iconbtn" aria-label="Account and password" title="Account and password">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+                <circle cx="8" cy="5.5" r="2.75" />
+                <path d="M2.75 13.5c.6-2.6 2.7-4 5.25-4s4.65 1.4 5.25 4" />
+              </svg>
+            </Link>
             <form action="/auth/signout" method="post">
               <button className="iconbtn" aria-label="Sign out" title="Sign out">
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">

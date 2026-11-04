@@ -1,11 +1,23 @@
 "use client";
 
-import { useActionState } from "react";
+import { startTransition, useActionState, useEffect, useRef } from "react";
 
 export type ActionResult = { ok?: string; error?: string } | null;
 type Action = (prev: ActionResult, form: FormData) => Promise<ActionResult>;
 
-/** A form bound to a server action, with inline pending/success/error feedback. */
+/**
+ * onSubmit handler that sends the form to `dispatch` (from useActionState) without
+ * React's automatic form reset, so what the user typed survives an error.
+ */
+export function keepValuesOnSubmit(dispatch: (data: FormData) => void) {
+  return (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+    startTransition(() => dispatch(data));
+  };
+}
+
+/** A form bound to a server action, with inline pending/success/error feedback. Clears only on success. */
 export default function ActionForm({
   action,
   submit,
@@ -22,15 +34,21 @@ export default function ActionForm({
   confirm?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, null);
+  const form = useRef<HTMLFormElement>(null);
+  const send = keepValuesOnSubmit(formAction);
+  useEffect(() => {
+    if (state?.ok) form.current?.reset();
+  }, [state]);
   const btn =
     variant === "solid" ? "btn btn--solid" : variant === "danger" ? "btn btn--sm btn--danger" : variant === "small" ? "btn btn--sm" : "btn";
 
   return (
     <form
-      action={formAction}
+      ref={form}
       className={className}
       onSubmit={(e) => {
-        if (confirm && !window.confirm(confirm)) e.preventDefault();
+        if (confirm && !window.confirm(confirm)) return e.preventDefault();
+        send(e);
       }}
     >
       {children}

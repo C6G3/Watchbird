@@ -57,8 +57,12 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           </div>
         ) : (
           <>
-            {error ? <p className="notice notice--error auth__form">That sign-in link has expired. Try again.</p> : null}
-            <AuthForm mode={mode === "signup" ? "signup" : "signin"} />
+            {error ? (
+              <p className="notice notice--error auth__form">
+                That link has expired or was opened in a different browser. Try again from this one.
+              </p>
+            ) : null}
+            <AuthForm mode={mode === "signup" || mode === "forgot" ? mode : "signin"} />
           </>
         )}
         <div className="auth__form" style={{ marginTop: 40 }}>

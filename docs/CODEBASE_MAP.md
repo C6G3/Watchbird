@@ -35,7 +35,8 @@ Storage bucket `scans` → Hugging Face (`web/src/lib/insights.ts`) → `public.
 | `web/src/app/(app)/devices/[id]` | One tracker: map, speed/altitude sparklines, events, datasheet. |
 | `web/src/app/(app)/scans` | Photo upload + history; `scans/[id]` shows one insight. |
 | `web/src/app/(app)/admin/*` | Admin only (`admin/layout.tsx` calls `requireAdmin`). `actions.ts` holds every admin mutation. |
-| `web/src/app/login`, `auth/*` | Email/password auth, signup, email callback, sign-out, demo entry. |
+| `web/src/app/login`, `auth/*` | Sign in, sign up, forgot password, email/reset-link callback, sign-out, demo entry. |
+| `web/src/app/(app)/account` | Any signed-in user: change password, see own name/email/role. |
 | `web/src/app/api/scans/route.ts` | Upload → storage → HF models → save insight. |
 | `web/src/app/api/track/route.ts` | Phone-tracker fixes → `"Data"` (admin only, service-role insert). |
 | `web/src/proxy.ts` | Next 16 "proxy" (was middleware): refreshes Supabase cookie, bounces signed-out users. |
@@ -47,7 +48,8 @@ Storage bucket `scans` → Hugging Face (`web/src/lib/insights.ts`) → `public.
 | `web/src/lib/types.ts` | Shared TS types (`Device`, `Fix`, `DeviceTrack`, `AnomalyEvent`, `Insight`, …). |
 | `web/src/components/FieldMap.tsx` | MapLibre map: ESRI satellite / CARTO plain, tracks, anomaly rings, farm edges. |
 | `web/src/components/PhoneTracker.tsx` | Phone-as-tracker page logic: geolocation, wake lock, offline queue. |
-| `web/src/components/ActionForm.tsx` | Form wrapper for server actions with pending/ok/error feedback. |
+| `web/src/components/ActionForm.tsx` | Form wrapper for server actions with pending/ok/error feedback; keeps input on error, clears on success. `keepValuesOnSubmit` does the same for custom forms. |
+| `web/src/components/PasswordInput.tsx` | Password field with a show/hide eye. Use it for every password input. |
 | `web/src/lib/format.ts` | Time, distance, coordinate formatting; `describeEvent`; `cap`. |
 | `web/src/app/globals.css` | The whole design system: tokens (light/dark), shell, panels, sheets, map, forms. |
 | `supabase/migrations/` | Schema + RLS + storage + RPCs. Single source of truth for the database. |
