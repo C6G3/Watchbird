@@ -30,7 +30,7 @@ Storage bucket `scans` → Hugging Face (`web/src/lib/insights.ts`) → `public.
 | Path | What it is |
 | --- | --- |
 | `web/` | Next.js 16 (App Router, React 19, TypeScript, plain CSS). The product. |
-| `web/src/app/(app)/` | Signed-in pages. `layout.tsx` = auth gate + `AppShell` + realtime refresh. |
+| `web/src/app/(app)/` | Signed-in pages. `layout.tsx` = auth gate + `AppShell` + realtime refresh; `loading.tsx` = instant navigation transition. |
 | `web/src/app/(app)/dashboard` | Farm overview: stats, map, tracker list, field notes. |
 | `web/src/app/(app)/devices/[id]` | One tracker: map, speed/altitude sparklines, events, datasheet. |
 | `web/src/app/(app)/scans` | Photo upload + history; `scans/[id]` shows one insight. |

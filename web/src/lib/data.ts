@@ -3,6 +3,7 @@ import { cache } from "react";
 import { isDemo } from "./env";
 import { createSupabaseServer } from "./supabase/server";
 import { demoFarms, demoJobs, demoMembers, demoModels, demoScans, demoTracks } from "./demo";
+import { anomalyEvents, EVENT_GAP_S, MIN_EVENT_SIZE } from "./geo";
 import type { Device, DeviceTrack, Farm, Fix, Member, MlJob, MlModel, Scan, Viewer } from "./types";
 
 // All reads go through here. With Supabase, RLS decides what the viewer can
@@ -105,10 +106,56 @@ export async function getTracks(viewer: Viewer, opts: { farmId?: string; limit?:
   );
 }
 
-/** getTracks memoised per request, so the layout's alert count and the page share one fetch. */
+/** getTracks memoised per request, so multiple callers on the same page share one fetch. */
 export const getTracksCached = cache((viewer: Viewer, farmId: string | undefined, limit: number) =>
   getTracks(viewer, { farmId, limit }),
 );
+
+/** Total anomaly events across all visible devices in the last 24 h (used for the nav badge). */
+export async function getAlertCount(viewer: Viewer): Promise<number> {
+  const since = Date.now() - 24 * 3600_000;
+  if (isDemo) {
+    const ids = demoFarmIds(viewer);
+    const tracks = demoTracks().filter((d) => !ids || (d.farmId && ids.includes(d.farmId)));
+    return tracks.flatMap(anomalyEvents).filter((e) => Date.parse(e.end) >= since).length;
+  }
+
+  const supabase = await createSupabaseServer();
+  const sinceIso = new Date(since).toISOString();
+  const { data, error } = await supabase
+    .from("Data")
+    .select("Device_id, Timestamp")
+    .eq("Anomaly", -1)
+    .gte("Timestamp", sinceIso)
+    .order("Timestamp", { ascending: true });
+
+  if (error || !data || !data.length) return 0;
+
+  const byDevice = new Map<number, number[]>();
+  for (const row of data as { Device_id: number; Timestamp: string }[]) {
+    const list = byDevice.get(row.Device_id) ?? [];
+    list.push(Date.parse(row.Timestamp));
+    byDevice.set(row.Device_id, list);
+  }
+
+  let count = 0;
+  for (const timestamps of byDevice.values()) {
+    let run = 0;
+    let lastT = 0;
+    for (const t of timestamps) {
+      if (lastT && (t - lastT) / 1000 > EVENT_GAP_S) {
+        if (run >= MIN_EVENT_SIZE) count++;
+        run = 0;
+      }
+      run++;
+      lastT = t;
+    }
+    if (run >= MIN_EVENT_SIZE) count++;
+  }
+  return count;
+}
+
+export const getAlertCountCached = cache((viewer: Viewer) => getAlertCount(viewer));
 
 export async function getTrack(viewer: Viewer, deviceId: number, limit = 2000): Promise<DeviceTrack | null> {
   if (isDemo) return (await getTracks(viewer, { limit })).find((d) => d.id === deviceId) ?? null;
