@@ -10,3 +10,5 @@ matplotlib
 seaborn
 joblib
 
+python-dotenv
+paho-mqtt

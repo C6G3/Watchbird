@@ -1,394 +1,160 @@
-# 🐦 Watchbird: Bird Movement Anomaly Detection
+# Watchbird
 
-<div align="center">
+Field telemetry for farms. ESP32 GPS trackers report every 15 seconds, and an
+unsupervised model flags movement that doesn't look normal: an animal leaving
+its range, a bird circling where it never goes, a tractor moving at 3 a.m.
+Farmers see their farm on a map in plain language and can photograph a crop
+or animal for a diagnosis. Admins manage devices, farms, people and models.
 
-**Real-time anomaly detection system for monitoring bird movement patterns**
-
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Streamlit](https://img.shields.io/badge/streamlit-1.0+-red.svg)](https://streamlit.io/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Supabase](https://img.shields.io/badge/database-Supabase-green.svg)](https://supabase.com/)
-
-[Features](#-core-features) • [Quick Start](#-quick-start) • [Usage Guide](#-usage-guide) • [Architecture](#%EF%B8%8F-system-architecture) • [Model Details](#-the-anomaly-detection-model)
-
-</div>
-
----
-
-## 📋 Overview
-
-Watchbird is a full-stack, real-time anomaly detection system designed to monitor bird movement data using GPS tracking. It leverages machine learning to automatically identify unusual behaviors such as sudden altitude drops, hovering patterns, or erratic speed changes.
-
-The application answers a critical question: **"Is this bird behaving normally?"**
-
-Built with a **Streamlit frontend** for interactive visualization, a **Python backend** for model training and inference, and a **Supabase (PostgreSQL) database** for data persistence, Watchbird moves beyond simple data visualization to provide an intelligent, automated monitoring tool.
-
-## 🎯 Core Features
-
-### 🗺️ Interactive Map Dashboard
-- Real-time visualization of device locations using Streamlit and Folium
-- Anomalies highlighted in red, normal behavior in blue
-- Live tracking with automatic map updates
-
-### 🧠 Unsupervised Anomaly Detection
-- **Isolation Forest algorithm** for detecting "few and different" outliers
-- No pre-labeled data required
-- Highly effective at identifying complex behavioral anomalies
-
-### 🔬 Intelligent Feature Engineering
-The model processes **40+ engineered features** to capture complex behaviors:
-- **Movement Metrics**: Speed, acceleration, vertical speed
-- **Statistical Analysis**: Rolling mean/std over multiple time windows
-- **Behavioral Flags**: Hovering detection, burst movement identification
-- **Normalization**: Z-scores to detect deviation from recent patterns
-
-### 🎯 Robust Post-Processing
-- Filters isolated single-point anomalies
-- Focuses on **anomalous events** (clusters of anomalous points)
-- Dramatically reduces false positives
-
-### 📡 Online Monitoring
-- Active data fetching and real-time inference
-- Device-specific model application
-- Automatic database updates with detected anomalies
-
-### ⚙️ Model Management
-- Train multiple models from the web UI
-- Save and version control models
-- Assign different models to different devices (e.g., one for eagles, another for vultures)
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.8 or higher
-- Supabase account
-- Git
-
-### Installation
-
-**1. Clone the repository**
-
-```bash
-git clone https://github.com/Psynolyn/Watchbird.git
-cd Watchbird
+```
+ESP32 tracker ──MQTT──▶ bridge.py ──▶ Supabase (Postgres + Auth + Storage + Realtime)
+                                         ▲            │
+                         ml/service.py ──┘            ▼
+                         (train / score)          web/  Next.js app
+                                                  └─ photo scans → Hugging Face
 ```
 
-**2. Set up Python environment**
+| Part | Stack |
+| --- | --- |
+| `web/` | Next.js 16, React 19, TypeScript, MapLibre, plain CSS (light/dark) |
+| `supabase/` | Schema, row-level security, storage bucket, RPCs |
+| `ml/service.py` | FastAPI around the existing `train.py` pipeline (scikit-learn) |
+| `bridge.py` | MQTT → Supabase |
+| `tracker_stable_3.cpp` | ESP32 firmware, Wi-Fi or SIM800 GPRS |
+| `app.py` | Legacy Streamlit UI, kept for reference |
+
+## Try it in 1 minute (demo mode)
 
 ```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
+cd web
+npm install
+npm run dev
 ```
 
-**3. Create required directories**
+Open http://localhost:3000 and choose **Enter as farmer** or **Enter as
+admin**. With no Supabase keys, the app runs on a synthetic farm near DeKUT
+and nothing is saved.
+
+## Go live
+
+### 1. Supabase
+
+1. Use the existing Watchbird project or create one at [supabase.com](https://supabase.com).
+2. In the SQL editor, run `supabase/migrations/20261103000000_init.sql`. It is
+   idempotent: on the original project it keeps `"Devices"`/`"Data"` and their
+   rows, adds the new columns and tables, and replaces the old open anon
+   policies. Optionally run `supabase/seed.sql` for starter farms.
+3. In **Authentication → URL configuration**, add `http://localhost:3000/auth/callback`
+   (and your production URL) to the redirect URLs.
+
+### 2. Web app
 
 ```bash
-mkdir models results dataset
+cp web/.env.example web/.env.local   # fill in the Supabase URL, anon key and service-role key
+npm --prefix web run dev
 ```
 
-**4. Configure Supabase**
+Sign up at `/login`, then make yourself admin in the SQL editor:
 
-Create a new project on [Supabase](https://supabase.com/) and set up your database tables:
-
-**Devices Table:**
 ```sql
-CREATE TABLE public.Devices (
-  Device_id INT PRIMARY KEY,
-  Device_name TEXT NOT NULL UNIQUE,
-  Status TEXT,
-  Color_1 TEXT,        -- Map path color (e.g., '#FF0000')
-  Color_2 TEXT,        -- Map fill color (e.g., '#FF0000')
-  IF_model TEXT        -- Assigned model name (e.g., 'model_v1')
-);
+update public.profiles set role = 'admin' where email = 'you@example.com';
 ```
 
-**Data Table:**
-```sql
-CREATE TABLE public.Data (
-  Id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-  Device_id INT REFERENCES public.Devices(Device_id),
-  Timestamp TIMESTAMPTZ NOT NULL,
-  Latitude FLOAT NOT NULL,
-  Longitude FLOAT NOT NULL,
-  Altitude FLOAT,
-  speed_m_s FLOAT,
-  delta_alt FLOAT,
-  dt FLOAT,
-  distance_m FLOAT,
-  bearing FLOAT,
-  acceleration FLOAT,
-  Anomaly INT DEFAULT 1    -- 1 = Normal, -1 = Anomaly
-);
+### 3. Photo insights (Hugging Face)
 
--- Create indexes for performance
-CREATE INDEX ON public.Data (Device_id, "Timestamp" DESC);
-ALTER TABLE public.Data ENABLE ROW LEVEL SECURITY;
-```
+Create a token at https://huggingface.co/settings/tokens with **Make calls to
+Inference Providers** enabled, then set `HF_TOKEN` in `web/.env.local`.
+Defaults:
 
-> **Note:** Feature columns (`speed_m_s`, `dt`, etc.) are optional. The system will compute them automatically if missing.
+- `HF_VISION_MODEL=Qwen/Qwen2.5-VL-7B-Instruct` looks at the photo and writes
+  the diagnosis and next steps as structured JSON.
+- `HF_PLANT_CLASSIFIER` is an optional PlantVillage leaf classifier. Its top
+  labels are passed to the vision model as a hint.
 
-**5. Configure Streamlit secrets**
-
-Create `.streamlit/secrets.toml`:
-
-```toml
-SUPABASE_URL = "YOUR_PROJECT_URL"
-SUPABASE_KEY = "YOUR_PROJECT_ANON_KEY"
-```
-
-**6. Launch the application**
+### 4. ML service and bridge
 
 ```bash
-streamlit run app.py
+cp .env.example .env                 # SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ML_SERVICE_SECRET
+pip install -r ml/requirements.txt
+uvicorn ml.service:app --port 8000   # from the repo root
+python bridge.py                     # in another terminal
 ```
 
-The application will open in your default browser at `http://localhost:8501`
+Set `ML_SERVICE_URL` and the same `ML_SERVICE_SECRET` in `web/.env.local`.
+Admin → Models can then train models and run detection. To score
+automatically, schedule `POST http://127.0.0.1:8000/monitor` (with header
+`X-ML-Secret`) every few minutes.
 
-## 📖 Usage Guide
+> With row-level security on, the anon key can no longer write telemetry.
+> `bridge.py` and the ML service need the **service-role** key. Keep it server-side.
 
-Watchbird operates in three distinct modes, accessible from the sidebar:
+## Deploy (Render, free)
 
-### 🎓 Mode 1: Train (First Step)
+`render.yaml` defines two free web services: `watchbird-web` (Next.js) and
+`watchbird-ml` (FastAPI, which also runs the MQTT bridge and scores new fixes
+every 10 minutes).
 
-Train a model before you can monitor:
+1. Push the repo to GitHub. In Render: **New → Blueprint** and pick the repo.
+2. Fill in the values it asks for: Supabase URL, anon key and service-role
+   key, and `HF_TOKEN`. Leave `ML_SERVICE_URL` for now.
+3. After the first deploy, set `ML_SERVICE_URL` on `watchbird-web` to
+   `watchbird-ml`'s public URL (e.g. `https://watchbird-ml.onrender.com`) and redeploy.
+4. In Supabase **Authentication → URL configuration**, set the Site URL to the
+   `watchbird-web` URL and add `<that URL>/auth/callback` to the redirect URLs.
 
-1. Select **"Train"** from the Mode dropdown
-2. Choose one or more devices for training data
-3. Enter a unique model name (e.g., `eagle_model_v1`)
-4. Click **"Train"**
+Free services sleep after ~15 minutes idle. Visitors then see Render's
+"waking up" page for 30–60 s. While `watchbird-ml` sleeps, its bridge sleeps
+too, so tracker fixes sent in that window are dropped: fine for a demo, not
+for production. Trained models live in the private `models` storage bucket, so
+restarts don't lose them (`python -m ml.sync_models` uploads local ones).
 
-The system will:
-- Fetch all historical data
-- Engineer features
-- Train an Isolation Forest model
-- Save model files (`.pkl`) to `/models` directory
+## Phone as a tracker (demos)
 
-### 🔗 Mode 2: Device Model Assignment (Second Step)
+No ESP32 to hand? Register a device in **Admin → Devices** (e.g. `wb_phone`,
+attached to "Phone"), then open **Admin → Phone tracker** on a phone, pick
+it and press **Start**. The page reads the phone's GPS and posts a fix every
+5–30 s through `/api/track`, which stores it like `bridge.py` does. It
+needs HTTPS (so use the deployed site) and the screen kept on; fixes are queued
+while offline.
 
-Assign trained models to specific devices:
+## Roles
 
-1. Select **"Device Model Assignment"** from the Mode dropdown
-2. Choose device(s) to configure
-3. Select the appropriate model from the dropdown for each device
-4. The assignment is saved to the Supabase database
+- **Farmer**: sees only the farms an admin has linked them to. Read-only,
+  apart from their own photo scans.
+- **Admin**: manages devices, farms, people, roles, models and jobs.
 
-This allows device-specific detection (e.g., different models for different bird species).
+Both rules are enforced in Postgres (RLS), not just in the UI.
 
-### 📊 Mode 3: Monitor (Ongoing Use)
+## Database
 
-The main dashboard for live monitoring:
+| Table | Purpose |
+| --- | --- |
+| `"Devices"`, `"Data"` | Trackers and GPS fixes. Legacy names kept for firmware/bridge/`train.py` compatibility. `"Data"` gains `anomaly_score` and `scored_at`. |
+| `profiles` | One per auth user: name, email, role (`admin` / `farmer`). |
+| `farms`, `farm_members` | Farms (centre, optional boundary polygon) and who can see them. |
+| `scans` + `scans` bucket | Photo scans and their structured insight. |
+| `ml_models`, `ml_jobs` | Model registry and the train/monitor job log. |
 
-1. Select **"Monitor"** from the Mode dropdown
-2. Choose devices to display on the map
-3. Click **"Reload & Monitor"**
+## Anomaly model
 
-The system will:
-- Fetch new GPS data points
-- Load device-specific models
-- Run inference on new data
-- Save detected anomalies to database
-- Update the map visualization
+Local Outlier Factor (compares each fix with its 50 most similar past fixes)
+over 15 movement features, most of them relative to the animal's own routine:
+speed vs its usual speed, distance to anywhere it went in the past week, and
+movement vs what's usual at this hour. Single-fix outliers are discarded, so
+only clustered anomalies (≥ 2 fixes within 15 minutes) count as events.
+Code in `ml/`; `python -m ml.benchmark` re-runs the model comparison and writes
+`docs/ML_BENCHMARK.md`. The old `train.py` model is kept only to score devices
+that haven't been retrained.
 
-**Visual Indicators:**
-- 🔵 **Small blue circles** = Normal behavior
-- 🔴 **Large red circles** = Detected anomalies
+## Working on this repo (people and AI agents)
 
-Check the **"Monitoring Stats"** sidebar for processing metrics.
+Start with [`AGENTS.md`](AGENTS.md): the rules, the pre-commit checks and
+recipes for common changes. Then:
 
-## 🏗️ System Architecture
+- [`docs/ROADMAP.md`](docs/ROADMAP.md): status, next tasks, decision log
+- [`docs/CODEBASE_MAP.md`](docs/CODEBASE_MAP.md): where everything lives
+- [`docs/APP_FUNCTIONALITY.md`](docs/APP_FUNCTIONALITY.md): how each feature works
 
-The application follows a continuous loop of training, assignment, and monitoring:
+Schema changes are tested with `npm --prefix supabase/tests install && npm --prefix supabase/tests test`.
 
-```
-┌─────────────────┐
-│  Data Ingestion │ ← GPS data streams into Supabase
-└────────┬────────┘
-         │
-         ├──→ ┌──────────────┐
-         │    │   Training   │ → Engineers features, trains model, saves .pkl files
-         │    └──────────────┘
-         │
-         ├──→ ┌──────────────┐
-         │    │  Assignment  │ → Links devices to specific models in database
-         │    └──────────────┘
-         │
-         └──→ ┌──────────────┐
-              │  Monitoring  │ → Loads models, runs inference, detects anomalies
-              └──────┬───────┘
-                     │
-                     └──→ ┌────────────────┐
-                          │ Visualization  │ → Updates map with anomaly markers
-                          └────────────────┘
-```
-
-### Detailed Workflow
-
-**Training Phase:**
-1. User selects devices and model name via UI
-2. `app.py` triggers `train.run_pipeline`
-3. System loads historical data, engineers features, scales data
-4. Trains Isolation Forest model
-5. Saves model and scaler as `.pkl` files to `/models`
-
-**Assignment Phase:**
-1. User selects device and available model
-2. `app.py` calls `db_operations.save_device_if_model`
-3. Updates `IF_model` column in Supabase `Devices` table
-
-**Monitoring Phase:**
-1. User clicks "Reload & Monitor"
-2. For each selected device:
-   - Looks up assigned model name
-   - Loads corresponding `.pkl` files
-   - Fetches new data points
-   - Runs inference pipeline
-   - Saves anomalies back to database
-3. Map visualization updates automatically
-
-## 🧠 The Anomaly Detection Model
-
-### Why Isolation Forest?
-
-The Isolation Forest algorithm was chosen for its unique strengths:
-
-- **Unsupervised Learning**: No pre-labeled data required
-- **Efficiency**: Scales well with large datasets (O(n log n))
-- **Robustness**: Handles complex, multi-modal "normal" behaviors effectively
-- **Outlier Detection**: Excels at identifying "few and different" patterns
-
-### Feature Engineering (40+ Features)
-
-The model's intelligence comes from comprehensive feature extraction:
-
-#### Base Metrics
-- `dt`: Time delta between consecutive points
-- `distance_m`: Distance traveled
-- `speed_m_s`: Speed in meters per second
-- `vertical_speed`: Rate of altitude change
-- `acceleration`: Rate of speed change
-
-#### Statistical Features
-Rolling statistics over multiple windows (3, 5, and 9 points):
-- `speed_mean_3/5/9`: Short to medium-term speed trends
-- `speed_std_3/5/9`: Speed variability
-- `acceleration_mean_3/5/9`: Acceleration patterns
-- `vertical_speed_mean_3/5/9`: Altitude change trends
-
-#### Behavioral Flags
-- **`hover_flag`**: Triggered when speed < 0.5 m/s for > 600 seconds
-- **`burst_flag`**: Triggered by high acceleration (> 2.0 m/s²) or rapid speed changes
-
-#### Normalization Features
-- **`speed_zscore`**: Standard deviations from recent (10-point) average
-- **`log_speed`** / **`log_distance`**: Log transforms for skewed distributions
-
-#### Temporal Features
-- `hour_norm`: Time of day patterns
-- `day_of_week_norm`: Weekly behavioral patterns
-
-### Data Scaling
-
-Features are scaled using **RobustScaler**, which is less sensitive to outliers—critical since we're trying to detect them.
-
-### Anomaly Event Filtering
-
-The system implements intelligent post-processing to reduce false positives:
-
-1. **Event Grouping**: Consecutive anomaly points are grouped into "events"
-2. **Gap Threshold**: Uses 900-second `EVENT_GAP_THRESHOLD` to define event boundaries
-3. **Minimum Event Size**: Discards events with fewer than 2 points (`MIN_EVENT_SIZE`)
-
-**Result**: The system ignores isolated, single-point anomalies and focuses only on **sustained anomalous behavior**, dramatically improving alert quality.
-
-## 🛠️ Technology Stack
-
-| Component | Technology |
-|-----------|------------|
-| **Frontend** | Streamlit, Streamlit-Folium |
-| **Backend & ML** | Python |
-| **Machine Learning** | Scikit-learn (IsolationForest, RobustScaler) |
-| **Data Processing** | Pandas, NumPy |
-| **Database** | Supabase (PostgreSQL) |
-| **Geospatial** | Folium, Geopy |
-| **Model Persistence** | Joblib |
-
-## 📁 Project Structure
-
-```
-Watchbird/
-├── app.py                  # Main Streamlit application
-├── train.py                # ML pipeline and feature engineering
-├── db_operations.py        # Database interactions
-├── reload_and_monitor.py   # Real-time monitoring logic
-├── requirements.txt        # Python dependencies
-├── .streamlit/
-│   └── secrets.toml        # Supabase credentials (not in repo)
-├── models/                 # Trained model .pkl files
-├── results/                # Anomaly CSVs and plots
-└── dataset/                # Training data cache
-```
-
-## 📊 Requirements
-
-Create a `requirements.txt` file with:
-
-```txt
-streamlit
-streamlit-folium
-supabase
-pandas
-numpy
-scikit-learn
-geopy
-folium
-joblib
-matplotlib
-seaborn
-```
-
-## 🔒 Security Notes
-
-- Never commit your `.streamlit/secrets.toml` file
-- Add it to `.gitignore`
-- Use environment variables for production deployments
-- Enable Row Level Security on Supabase tables
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- Built with ❤️ for wildlife conservation and monitoring
-- Powered by the Isolation Forest algorithm
-- Inspired by the need for automated wildlife behavioral analysis
-
-## 📞 Support
-
-For questions, issues, or suggestions:
-- Open an [issue](https://github.com/Psynolyn/Watchbird/issues)
-- Check the [documentation](https://github.com/Psynolyn/Watchbird/wiki)
-
----
-
-<div align="center">
-
-**[⬆ Back to top](#-watchbird-bird-movement-anomaly-detection)**
-
-Made by [Psynolyn](https://github.com/Psynolyn)
-
-</div>
+MIT licensed. Made by [Psynolyn](https://github.com/Psynolyn).

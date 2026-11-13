@@ -48,7 +48,7 @@ def on_message(client, userdata, msg):
         print(f"[ERROR] {e}")
 
 def on_disconnect(client, userdata, flags, reason_code, properties):
-    # Silent reconnection - no output
+  
     pass
 
 def try_connect():
@@ -83,33 +83,49 @@ def try_connect():
     
     return None
 
-# Main execution
-print("=" * 70)
-print("MQTT Watchbird Location Subscriber")
-print("=" * 70)
 
-client = try_connect()
+def start_background():
+    """Connect and pump MQTT on paho's own thread. Used by ml/service.py so one
+    Render service can host both the bridge and the ML API."""
+    client = try_connect()
+    if client:
+        client.loop_start()
+    else:
+        print("[ERROR] Bridge could not connect to any MQTT broker")
+    return client
 
-if client:
-    try:
-        print("\nListening... (Press Ctrl+C to stop)")
-        client.loop_forever()
-        
-    except KeyboardInterrupt:
-        print("\n\n" + "=" * 70)
-        print(f"[STATS] Total messages received: {message_count}")
-        if last_message_time:
-            print(f"[STATS] Last message: {last_message_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print("=" * 70)
-        print("\nShutting down...")
-        client.disconnect()
-        client.loop_stop()
-        print("Disconnected.")
-        
-    except Exception as e:
-        print(f"\n[ERROR] {e}")
-        client.disconnect()
-        client.loop_stop()
-else:
-    print("\n[ERROR] Could not connect to any MQTT broker")
-    print("Please check your internet connection or try again later")
+
+def main():
+    print("=" * 70)
+    print("MQTT Watchbird Location Subscriber")
+    print("=" * 70)
+
+    client = try_connect()
+
+    if client:
+        try:
+            print("\nListening... (Press Ctrl+C to stop)")
+            client.loop_forever()
+
+        except KeyboardInterrupt:
+            print("\n\n" + "=" * 70)
+            print(f"[STATS] Total messages received: {message_count}")
+            if last_message_time:
+                print(f"[STATS] Last message: {last_message_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            print("=" * 70)
+            print("\nShutting down...")
+            client.disconnect()
+            client.loop_stop()
+            print("Disconnected.")
+
+        except Exception as e:
+            print(f"\n[ERROR] {e}")
+            client.disconnect()
+            client.loop_stop()
+    else:
+        print("\n[ERROR] Could not connect to any MQTT broker")
+        print("Please check your internet connection or try again later")
+
+
+if __name__ == "__main__":
+    main()

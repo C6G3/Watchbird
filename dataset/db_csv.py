@@ -1,10 +1,7 @@
-import streamlit as st
 import pandas as pd
 import numpy as np
 from supabase import create_client, Client
-
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+from supabase_config import SUPABASE_URL, SUPABASE_KEY
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 table_name = "Data"
@@ -60,4 +57,4 @@ def compute_features(df: pd.DataFrame):
 def prepare_dataset():
     df = fetch_data("Data")
     df_features = compute_features(df)
-    df_features.to_csv("dataset\derived.csv", index=False)
+    df_features.to_csv("dataset/derived.csv", index=False)
