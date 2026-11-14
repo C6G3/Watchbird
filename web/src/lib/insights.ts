@@ -10,6 +10,12 @@ import type { Insight, ScanSubject } from "./types";
 
 const ROUTER = "https://router.huggingface.co";
 
+const chatEndpoint = () => {
+  const base = process.env.HF_BASE_URL?.replace(/\/+$/, "");
+  if (!base) return `${ROUTER}/v1/chat/completions`;
+  return base.endsWith("/chat/completions") ? base : `${base}/chat/completions`;
+};
+
 export const visionModel = () => process.env.HF_VISION_MODEL || "Qwen/Qwen2.5-VL-7B-Instruct";
 
 async function classify(image: ArrayBuffer, mime: string, token: string) {
@@ -77,7 +83,7 @@ export async function analysePhoto(image: ArrayBuffer, mime: string, subject: Sc
   const classifier = subject === "crop" ? await classify(image, mime, token) : undefined;
   const dataUrl = `data:${mime};base64,${Buffer.from(image).toString("base64")}`;
 
-  const res = await fetch(`${ROUTER}/v1/chat/completions`, {
+  const res = await fetch(chatEndpoint(), {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({

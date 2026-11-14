@@ -78,8 +78,9 @@ event list with coordinates; datasheet (attached to, usual/last position, notes)
 4. `lib/insights.ts`: for crops, an optional image classifier
    (`HF_PLANT_CLASSIFIER`, PlantVillage labels) → its top-3 labels are given
    as a hint to a vision-language model (`HF_VISION_MODEL`, default
-   `Qwen/Qwen2.5-VL-7B-Instruct`) via the HF router's OpenAI-compatible
-   `/v1/chat/completions`. The VLM must answer JSON matching `Insight`
+   `Qwen/Qwen2.5-VL-7B-Instruct`, or free OpenAI-compatible multimodal providers like
+   Google Gemini or Groq via `HF_BASE_URL`) via `/v1/chat/completions`. The VLM must
+   answer JSON matching `Insight`
    (`title, condition, urgency, confidence, summary, findings[], actions[]`).
    `parseInsight` clamps/validates it.
 5. Result is written with the service-role client (farmers have no UPDATE on

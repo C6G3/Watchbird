@@ -22,7 +22,7 @@ Owner "user" means it needs the human (accounts, keys, dashboards).
 
 1. [ ] **User**: sign up at `/login`, then `update public.profiles set role = 'admin' where email = '…';`
 2. [ ] **User**: add farms (Admin → Farms) and assign the 4 devices (Admin → Devices).
-3. [ ] **User**: put `HF_TOKEN` in `web/.env.local`; test one photo scan.
+3. [x] **User**: put `HF_TOKEN` in `web/.env.local`; test one photo scan.
 4. [ ] **User**: push `web-rebuild`, deploy with the Render blueprint (README → Deploy).
        Then in Supabase → Authentication: set Site URL and redirect URLs to the
        Render domain (and `http://localhost:3000/**`), or confirmation and reset
@@ -100,3 +100,4 @@ Newest last. Don't reverse one of these without the user's say-so.
 | v2 model: Local Outlier Factor (50 neighbours), threshold q=0.99, replaces train.py's IsolationForest | Benchmark (`docs/ML_BENCHMARK.md`, held-out): livestock recall 0.86 vs 0.71 with 4.5x fewer false alarms; catches "stopped moving" (0.93 vs 0.02). Trade-off: misses more strays (0.50 vs 0.85), which geofencing should cover. Chosen over IF/GMM/robust-z/ensemble by recall at <= 4 false alarms per 1k fixes. |
 | One model per group by default; per device is opt-in | The user expected per-device models to win; the benchmark found them equal or worse, because the features are already relative to each device's own routine and per-device models see less data. New devices also need ~3 days of data first. |
 | Layout queries alert count via targeted query rather than full tracks; added loading.tsx | Speeds up every non-dashboard navigation by eliminating multi-device track fetches (1,600+ points) on every page click, and gives immediate UI feedback on click. |
+| Support `HF_BASE_URL` for free multimodal vision providers | Hugging Face's serverless router now bills for large vision models via third-party providers. Adding an optional base URL allows free providers (Google Gemini, Groq) using the same OpenAI-compatible chat completions format. |
