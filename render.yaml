@@ -53,6 +53,8 @@ services:
         sync: false
       - key: HF_TOKEN
         sync: false
+      - key: HF_BASE_URL
+        sync: false
       - key: HF_VISION_MODEL
         value: Qwen/Qwen2.5-VL-7B-Instruct
       - key: HF_PLANT_CLASSIFIER
