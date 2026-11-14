@@ -17,6 +17,7 @@ const chatEndpoint = () => {
 };
 
 export const visionModel = () => process.env.HF_VISION_MODEL || "Qwen/Qwen2.5-VL-7B-Instruct";
+const maxTokens = () => Math.max(700, Number(process.env.HF_MAX_TOKENS) || 2500);
 
 async function classify(image: ArrayBuffer, mime: string, token: string) {
   const model = process.env.HF_PLANT_CLASSIFIER;
@@ -60,9 +61,40 @@ function prompt(subject: ScanSubject, note: string, hint?: { label: string; scor
     .join("\n");
 }
 
-function parseInsight(text: string): Omit<Insight, "classifier"> {
-  const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
-  const raw = JSON.parse(json) as Partial<Insight>;
+function extractJson(text: string): string {
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const candidate = match ? match[1].trim() : text.trim();
+  const firstBrace = candidate.indexOf("{");
+  const lastBrace = candidate.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    return candidate.slice(firstBrace, lastBrace + 1);
+  }
+  const rawFirst = text.indexOf("{");
+  const rawLast = text.lastIndexOf("}");
+  if (rawFirst !== -1 && rawLast > rawFirst) {
+    return text.slice(rawFirst, rawLast + 1);
+  }
+  return "";
+}
+
+function parseInsight(text: string, finishReason?: string): Omit<Insight, "classifier"> {
+  if (finishReason === "length") {
+    throw new Error("The model response ran out of output tokens before completing. Try a closer photo or higher token limit.");
+  }
+
+  const jsonStr = extractJson(text);
+  if (!jsonStr) {
+    throw new Error("The model could not produce a structured diagnosis. Please take a clearer, closer photo and try again.");
+  }
+
+  let raw: Partial<Insight>;
+  try {
+    const sanitized = jsonStr.replace(/,\s*([}\]])/g, "$1");
+    raw = JSON.parse(sanitized) as Partial<Insight>;
+  } catch (err) {
+    throw new Error(`The model output was not valid JSON (${(err as Error).message}). Please try scanning again.`);
+  }
+
   const pick = <T extends string>(v: unknown, allowed: readonly T[], fallback: T) =>
     allowed.includes(v as T) ? (v as T) : fallback;
   return {
@@ -88,7 +120,7 @@ export async function analysePhoto(image: ArrayBuffer, mime: string, subject: Sc
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: visionModel(),
-      max_tokens: 700,
+      max_tokens: maxTokens(),
       temperature: 0.2,
       messages: [
         {
@@ -102,7 +134,26 @@ export async function analysePhoto(image: ArrayBuffer, mime: string, subject: Sc
     }),
     signal: AbortSignal.timeout(60_000),
   });
-  if (!res.ok) throw new Error(`Vision model failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
-  const body = (await res.json()) as { choices: { message: { content: string } }[] };
-  return { ...parseInsight(body.choices[0]?.message?.content ?? ""), classifier };
+
+  if (!res.ok) {
+    const errText = await res.text();
+    if (res.status === 429) {
+      throw new Error("Vision AI rate limit or quota exceeded. Please wait a moment or check your API plan limits.");
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error("Vision AI authentication failed. Please verify your HF_TOKEN.");
+    }
+    throw new Error(`Vision model failed (${res.status}): ${errText.slice(0, 200)}`);
+  }
+
+  const body = (await res.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[] };
+  const choice = body.choices?.[0];
+  if (!choice?.message?.content) {
+    if (choice?.finish_reason === "length") {
+      throw new Error("The model response ran out of tokens during thinking. Try increasing token limits or using a closer photo.");
+    }
+    throw new Error("The model returned an empty response. Please try scanning again.");
+  }
+
+  return { ...parseInsight(choice.message.content, choice.finish_reason), classifier };
 }
